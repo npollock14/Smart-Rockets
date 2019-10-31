@@ -41,7 +41,7 @@ public class SmartRocketsMain extends JPanel
 	}
 
 	private void init() {
-
+		p.obstacles.add(new Rect(300,400, 400, 50));
 	}
 
 	// ==================code above ===========================
@@ -155,8 +155,10 @@ public class SmartRocketsMain extends JPanel
 }
 
 class Population {
+	int generation = 0;
 	Rocket[] rockets;
 	ArrayList<Rocket> breedingPool = new ArrayList<Rocket>();
+	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	int age = 0;
 	int lifeSpan;
 	Point target;
@@ -175,6 +177,9 @@ class Population {
 		if (age < lifeSpan) {
 			for (Rocket r : rockets) {
 				r.update();
+				for(Rect b : obstacles) {
+					if(r.pos.inside(b)) r.dead = true;
+				}
 			}
 		} else {
 			evaluate();
@@ -192,15 +197,19 @@ class Population {
 			r.show(g);
 		}
 		g.fillOval((int)(target.x - targetDiameter/2), (int) (target.y - targetDiameter/2), targetDiameter, targetDiameter);
+		for(Rect r : obstacles) {
+			g.drawRect((int)r.pos.x, (int)r.pos.y, (int)r.w, (int)r.h);
+		}
+	
 	}
 
 	private void evaluate() {
 		double sum = 0;
 		for (Rocket r : rockets) {
 			
-			r.fitness = 100 / Math.pow(r.pos.distanceTo(target),1);
+			r.fitness = 1 / Math.pow(r.pos.distanceTo(target),1);
 			sum += r.fitness;
-			if(r.pos.distanceTo(target) < 10) r.fitness = 1;
+			if(r.pos.distanceTo(target) < 50) r.fitness = 1;
 
 		}
 		System.out.println(sum/200);
@@ -212,7 +221,7 @@ class Population {
 
 	private void selection() {
 		for (Rocket r : rockets) {
-			for (int i = 0; i < r.fitness * 100; i++) {
+			for (int i = 0; i < r.fitness * 10 * (r.achieved ? 100 : 1) * (r.dead ? 0.1 : 1); i++) { ///(r.age/r.lifeSpan) : 1)
 				breedingPool.add(r);
 			}
 		}
@@ -220,12 +229,10 @@ class Population {
 		for (int i = 0; i < rockets.length; i++) {
 			Genes a = breedingPool.get((int) (Math.random() * breedingPool.size())).g;
 			Genes b = breedingPool.get((int) (Math.random() * breedingPool.size())).g;
-			rockets[i].pos = new Point(500,950);
-			rockets[i].dead = false;
-			rockets[i].age = 0;
-			rockets[i].vel = new Vec2(0,0);
-			rockets[i].g = a.cross(b);
+			newRs[i] = new Rocket(new Point(500,950), target);
+			newRs[i].g = a.cross(b);
 		}
+		this.rockets = newRs;
 	}
 }
 
@@ -234,11 +241,12 @@ class Rocket {
 	Genes g;
 	int w = 10, h = 10;
 	Vec2 vel = new Vec2(0, 0);
-	int lifeSpan = 80;
+	int lifeSpan = 150;
 	int age = 0;
 	boolean dead;
 	Point target;
 	double fitness = 0;
+	boolean achieved;
 
 	public Rocket(Point pos, Point target) {
 		super();
@@ -252,13 +260,19 @@ class Rocket {
 	}
 
 	public void update() {
-		if (age < lifeSpan) {
+		if (age < lifeSpan && !dead && !achieved) {
 			vel.x += g.dna[age].x;
 			vel.y += g.dna[age].y;
 			pos.x += vel.x;
 			pos.y += vel.y;
 			age++;
 		} else {
+			dead = true;
+		}
+		if(pos.distanceTo(target) < 50) {
+			achieved = true;
+		}
+		if(pos.x > 1000 || pos.x < 0 || pos.y > 1000 || pos.y > 1000) {
 			dead = true;
 		}
 	}
@@ -308,6 +322,9 @@ class Point {
 		}
 		return 0;
 	}
+	public boolean inside(Rect r) {
+		return (x > r.pos.x && x < r.pos.x + r.w && y > r.pos.y && y < r.pos.y + r.h);
+	}
 }
 
 class Vec2 {
@@ -340,4 +357,21 @@ class Vec2 {
 		return 0;
 	}
 
+}
+class Rect {
+	Point pos;
+	double h, w;
+
+	public Rect(double x, double y, double w, double h) {
+
+		this.pos = new Point(x, y);
+		this.h = h;
+		this.w = w;
+
+	}
+
+	public boolean intersects(Rect r) {
+		return (pos.inside(r) || new Point(pos.x + w, pos.y).inside(r) || new Point(pos.x + w, pos.y + h).inside(r)
+				|| new Point(pos.x, pos.y + h).inside(r));
+	}
 }
