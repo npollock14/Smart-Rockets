@@ -24,24 +24,33 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
-	Population p = new Population(200, new Point(500, 50));
 	int frame = 0;
-
+	Rocket r = new Rocket(new Point(300, 300), new Point(0, 0), new NeuralNetwork(4, 4, 4));
+	Rect obs = new Rect(600, 100, 200, 300);
+	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	// ============== end of settings ==================
 
 	public void paint(Graphics g) {
 		super.paintComponent(g);
-		p.show(g);
+		g.setColor(Color.WHITE);
 		g.drawString("" + frame, 20, 20);
+		g.setColor(new Color(30, 30, 30));
+		g.fillRect(0, 0, screenWidth, screenHeight);
+		g.setColor(Color.red);
+		for (Rect r : obstacles) {
+			r.draw(g);
+		}
+
+		r.show(g);
 	}
 
 	public void update() throws InterruptedException {
-		p.update();
+		r.update(obstacles);
 		frame++;
 	}
 
 	private void init() {
-		p.obstacles.add(new Rect(300,400, 400, 50));
+		obstacles.add(obs);
 	}
 
 	// ==================code above ===========================
@@ -154,151 +163,157 @@ public class SmartRocketsMain extends JPanel
 
 }
 
-class Population {
-	int generation = 0;
-	Rocket[] rockets;
-	ArrayList<Rocket> breedingPool = new ArrayList<Rocket>();
-	ArrayList<Rect> obstacles = new ArrayList<Rect>();
-	int age = 0;
-	int lifeSpan;
-	Point target;
-	int targetDiameter = 50;
+class Sensor {
+	Point pos,close;
+	double thetaOff;
+	double theta = 0.0;
+	double len;
+	double data;
 
-	public Population(int size, Point target) {
-		this.target = target;
-		rockets = new Rocket[size];
-		for (int i = 0; i < rockets.length; i++) {
-			rockets[i] = new Rocket(new Point(500, 950), target);
-		}
-		lifeSpan = rockets[0].lifeSpan;
+	public Sensor(Point pos, double thetaOff, double len) {
+		super();
+		this.pos = pos;
+		this.len = len;
+		this.thetaOff = thetaOff;
+		this.data = len;
 	}
 
-	public void update() {
-		if (age < lifeSpan) {
-			for (Rocket r : rockets) {
-				r.update();
-				for(Rect b : obstacles) {
-					if(r.pos.inside(b)) r.dead = true;
+	public void draw(Graphics g) {
+		g.setColor(Color.yellow);
+		g.drawLine((int) pos.x, (int) pos.y, (int) (pos.x + len * Math.cos(theta)),
+				(int) (pos.y + len * -Math.sin(theta)));
+		close.fillCircle(10, g);
+	}
+
+	public void update(Point pos, double theta, ArrayList<Rect> obstacles) {
+		this.pos = pos;
+		this.theta = theta + thetaOff;
+		double m = Math.tan(theta);
+		close = new Point((pos.x + len * Math.cos(theta)),(pos.y + len * -Math.sin(theta)));
+		for(Rect r : obstacles) {
+		//y-y0 = m(x-x0)
+			double yInt = m*(r.pos.x - pos.x) + pos.y;
+			if(yInt > r.pos.y && yInt < r.pos.y + r.h) {
+				if(pos.distanceTo(new Point(r.pos.x,yInt)) < pos.distanceTo(close)) {
+					close = new Point(r.pos.x,yInt);
 				}
 			}
-		} else {
-			evaluate();
-			selection();
-//			for (int i = 0; i < rockets.length; i++) {
-//				rockets[i] = new Rocket(new Point(500, 950), target);
-//			}
-			age = 0;
-		}
-		age++;
-	}
-
-	public void show(Graphics g) {
-		for (Rocket r : rockets) {
-			r.show(g);
-		}
-		g.fillOval((int)(target.x - targetDiameter/2), (int) (target.y - targetDiameter/2), targetDiameter, targetDiameter);
-		for(Rect r : obstacles) {
-			g.drawRect((int)r.pos.x, (int)r.pos.y, (int)r.w, (int)r.h);
-		}
-	
-	}
-
-	private void evaluate() {
-		double sum = 0;
-		for (Rocket r : rockets) {
-			
-			r.fitness = 1 / Math.pow(r.pos.distanceTo(target),1);
-			sum += r.fitness;
-			if(r.pos.distanceTo(target) < 50) r.fitness = 1;
-
-		}
-		System.out.println(sum/200);
-		double maxFit = rockets[0].fitness;
-		for (Rocket r : rockets) {
-			r.fitness /= maxFit;
-		}
-	}
-
-	private void selection() {
-		for (Rocket r : rockets) {
-			for (int i = 0; i < r.fitness * 10 * (r.achieved ? 100 : 1) * (r.dead ? 0.1 : 1); i++) { ///(r.age/r.lifeSpan) : 1)
-				breedingPool.add(r);
+			yInt = m*(r.pos.x + r.w - pos.x) + pos.y;
+			if(yInt > r.pos.y && yInt < r.pos.y + r.h) {
+				if(pos.distanceTo(new Point(r.pos.x + r.w,yInt)) < pos.distanceTo(close)) {
+					close = new Point(r.pos.x + r.w,yInt);
+				}
 			}
+			//((y-y0)/m) + x0 = x
+			//double xInt = 
+			
+			
 		}
-		Rocket[] newRs = new Rocket[rockets.length];
-		for (int i = 0; i < rockets.length; i++) {
-			Genes a = breedingPool.get((int) (Math.random() * breedingPool.size())).g;
-			Genes b = breedingPool.get((int) (Math.random() * breedingPool.size())).g;
-			newRs[i] = new Rocket(new Point(500,950), target);
-			newRs[i].g = a.cross(b);
-		}
-		this.rockets = newRs;
+		
 	}
+
+}
+class Line{
+	double m;
+	Point pos;
+	public Line(double m, Point pos) {
+		super();
+		this.m = m;
+		this.pos = pos;
+	}
+	public Point getIntersection(Line l2) {
+		double x = (m*pos.x - pos.y + l2.pos.y - l2.m*l2.pos.x)/(m - l2.m);
+		double y = m*(x - pos.x) + pos.y;
+		
+		return new Point(x,y);
+	}
+	
 }
 
 class Rocket {
-	Point pos;
-	Genes g;
-	int w = 10, h = 10;
+	Point pos, target;
+	Sensor[] sensors = new Sensor[8];
+	double w = 50.0, h = 200.0;
 	Vec2 vel = new Vec2(0, 0);
+	double alpha = -0.0001;
+	double omega = Math.toRadians(1.0);
+	double theta = Math.toRadians(0);
+	double a = 0.01;
+	double friction = 0.00;
+	double maxAlpha = 0.001;
+	double maxA = 0.05;
 	int lifeSpan = 150;
 	int age = 0;
 	boolean dead;
-	Point target;
 	double fitness = 0;
 	boolean achieved;
+	NeuralNetwork brain;
+	Point ul, ur, bl, br;
+	double d = Math.sqrt(Math.pow(w / 2, 2) + Math.pow(h / 2, 2));
 
-	public Rocket(Point pos, Point target) {
+	public Rocket(Point pos, Point target, NeuralNetwork brain) {
 		super();
 		this.pos = pos;
 		this.target = target;
-		this.g = new Genes(lifeSpan);
+		this.brain = brain;
+		for (int i = 0; i < sensors.length; i++) {
+			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
+		}
+		updateCorners();
+
 	}
 
 	public void show(Graphics g) {
-		g.drawOval((int) (pos.x + w / 2), (int) (pos.y + h / 2), w, h);
+
+		g.setColor(Color.white);
+		g.fillOval((int) pos.x - 5, (int) pos.y - 5, 10, 10);
+
+		for (Sensor s : sensors) {
+			s.draw(g);
+		}
+
+		g.setColor(Color.white);
+		ul.drawLine(ur, g);
+		ul.drawLine(bl, g);
+		ur.drawLine(br, g);
+		bl.drawLine(br, g);
+
+		// g.drawString(Math.toDegrees(theta) + " deg", (int) (pos.x + w), (int) (pos.y
+		// - h));
+
 	}
 
-	public void update() {
-		if (age < lifeSpan && !dead && !achieved) {
-			vel.x += g.dna[age].x;
-			vel.y += g.dna[age].y;
-			pos.x += vel.x;
-			pos.y += vel.y;
-			age++;
-		} else {
-			dead = true;
-		}
-		if(pos.distanceTo(target) < 50) {
-			achieved = true;
-		}
-		if(pos.x > 1000 || pos.x < 0 || pos.y > 1000 || pos.y > 1000) {
-			dead = true;
-		}
-	}
-}
+	public void updateCorners() {
+		double va = 2 * Math.atan2(w / 2, h / 2);
+		double ha = (Math.PI * 2 - va * 2) / 2;
 
-class Genes {
-	int len;
-	Vec2[] dna;
-
-	public Genes(int len) {
-		this.len = len;
-		this.dna = new Vec2[len];
-		for (int i = 0; i < len; i++) {
-			dna[i] = new Vec2();
-		}
+		ul = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va),
+				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va));
+		ur = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va + ha),
+				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va + ha));
+		br = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va + ha + va),
+				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va + ha + va));
+		bl = new Point(pos.x + d * Math.cos(va + ha + va + ha + theta - ha - Math.toRadians(45)),
+				pos.y - d * Math.sin(ha + va + ha + va + theta - ha - Math.toRadians(45)));
 	}
 
-	public Genes cross(Genes b) {
-		Genes res = new Genes(len);
-		int partition = (int) (Math.random() * len);
-		for (int i = 0; i < len; i++) {
-			res.dna[i] = i > partition ? this.dna[i] : b.dna[i];
-			if(Math.random() * 101 > 99) res.dna[i] = new Vec2();
-		}
+	public void update(ArrayList<Rect> obstacles) {
+		omega += alpha;
+		theta += omega;
 
-		return res;
+		vel.x += a * Math.cos(theta);
+		vel.y -= a * Math.sin(theta);
+
+		omega *= 1 - friction;
+		vel.x *= 1 - friction;
+		vel.y *= 1 - friction;
+
+		pos.add(vel);
+
+		for (Sensor s : sensors) {
+			s.update(pos, theta, obstacles);
+		}
+		updateCorners();
 	}
 }
 
@@ -310,8 +325,21 @@ class Point {
 		this.y = y;
 	}
 
+	public void fillCircle(int d, Graphics g) {
+		g.fillOval((int) (x - d / 2), (int) (y - d / 2), d, d);
+		
+	}
+
 	public double distanceTo(Point p2) {
 		return Math.sqrt((this.x - p2.x) * (this.x - p2.x) + (this.y - p2.y) * (this.y - p2.y));
+	}
+
+	public void drawLine(Point p2, Graphics g) {
+		g.drawLine((int) x, (int) y, (int) p2.x, (int) p2.y);
+	}
+
+	public void drawCircle(int d, Graphics g) {
+		g.drawOval((int) (x - d / 2), (int) (y - d / 2), d, d);
 	}
 
 	public double angleTo(Point p2) {
@@ -322,8 +350,14 @@ class Point {
 		}
 		return 0;
 	}
+
 	public boolean inside(Rect r) {
 		return (x > r.pos.x && x < r.pos.x + r.w && y > r.pos.y && y < r.pos.y + r.h);
+	}
+
+	public void add(Vec2 v) {
+		x += v.x;
+		y += v.y;
 	}
 }
 
@@ -358,6 +392,7 @@ class Vec2 {
 	}
 
 }
+
 class Rect {
 	Point pos;
 	double h, w;
@@ -368,6 +403,10 @@ class Rect {
 		this.h = h;
 		this.w = w;
 
+	}
+
+	public void draw(Graphics g) {
+		g.drawRect((int) pos.x, (int) pos.y, (int) w, (int) h);
 	}
 
 	public boolean intersects(Rect r) {
