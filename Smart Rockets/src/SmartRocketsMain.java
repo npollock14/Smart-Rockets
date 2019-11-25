@@ -19,8 +19,8 @@ public class SmartRocketsMain extends JPanel
 		implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 	private static final long serialVersionUID = 1L;
 
-	int screenWidth = 1000;
-	int screenHeight = 1000;
+	static int screenWidth = 1000;
+	static int screenHeight = 1000;
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
@@ -311,7 +311,17 @@ class Rocket {
 				pos.y - d * Math.sin(ha + va + ha + va + theta - ha - Math.toRadians(45)));
 	}
 
-	public void update(ArrayList<Rect> obstacles) {
+	public void update(ArrayList<Rect> obstacles) { //sensors, velocityLin, velocityAng, pos, theta
+		double[][] input = new double[1][sensors.length + 4];
+		for(int i = 0; i < input[0].length - 4; i++) {
+			input[0][i] = sensors[i].data;
+		}
+		input[0][sensors.length-4] = vel.getMagnitude();
+		input[0][sensors.length-3] = omega;
+		input[0][sensors.length-2] = pos.x/SmartRocketsMain.screenWidth;
+		input[0][sensors.length-1] = pos.y/SmartRocketsMain.screenHeight;
+		Matrix out = brain.feedFoward(Matrix(input));
+		
 		omega += alpha;
 		theta += omega;
 
