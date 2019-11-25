@@ -19,15 +19,18 @@ public class SmartRocketsMain extends JPanel
 		implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 	private static final long serialVersionUID = 1L;
 
-	static int screenWidth = 1000;
-	static int screenHeight = 1000;
+	static int screenWidth = 1200;
+	static int screenHeight = 650;
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
+	boolean allDead;
+	int numRockets = 10;
 	int frame = 0;
-	Rocket r = new Rocket(new Point(300, 700), new Point(0, 0), new NeuralNetwork(4, 4, 4));
-	Rect obs = new Rect(600, 100, 200, 300);
+	// Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
+	ArrayList<Rocket> rockets = new ArrayList<Rocket>();
+	ArrayList<Rocket> genePool = new ArrayList<Rocket>();
 	// ============== end of settings ==================
 
 	public void paint(Graphics g) {
@@ -40,17 +43,53 @@ public class SmartRocketsMain extends JPanel
 		for (Rect r : obstacles) {
 			r.draw(g);
 		}
+		for (Rocket r : rockets) {
+			r.show(g);
+		}
 
-		r.show(g);
 	}
 
 	public void update() throws InterruptedException {
-		r.update(obstacles);
+		allDead = true;
+		for (Rocket r : rockets) {
+			r.update(obstacles);
+			if (!r.dead) {
+				allDead = false;
+			}
+		}
+		if (allDead) {
+			double highFitness = rockets.get(0).fitness;
+			for (Rocket r : rockets) {
+				if (r.fitness > highFitness) {
+					highFitness = r.fitness;
+				}
+			}
+			for(Rocket r : rockets) {
+				r.fitness /= highFitness;
+			}
+			for(Rocket r : rockets) {
+				for(int i = 0; i < r.fitness * 10; i++) {
+					genePool.add(r);
+				}
+			}
+			rockets.clear();
+			for(int i = 0; i < numRockets; i++) {
+				NeuralNetwork newBrain = new NeuralNetwork(genePool.get((int)(Math.random() * genePool.size())).brain);
+				newBrain.mutate(.1f);
+				rockets.add(new Rocket(new Point(300, 700), new Point(0, 0)));
+			}
+			genePool.clear();
+			
+		}
+
 		frame++;
 	}
 
 	private void init() {
-		obstacles.add(obs);
+		for (int i = 0; i < numRockets; i++) {
+			rockets.add(new Rocket(new Point(300, 700), new Point(0, 0)));
+		}
+		// obstacles.add(obs);
 	}
 
 	// ==================code above ===========================
@@ -164,7 +203,7 @@ public class SmartRocketsMain extends JPanel
 }
 
 class Sensor {
-	Point pos,close;
+	Point pos, close;
 	double thetaOff;
 	double theta = 0.0;
 	double len;
@@ -176,7 +215,7 @@ class Sensor {
 		this.len = len;
 		this.thetaOff = thetaOff;
 		this.data = (float) len;
-		close = new Point((pos.x + len * Math.cos(theta)),(pos.y + len * -Math.sin(theta)));
+		close = new Point((pos.x + len * Math.cos(theta)), (pos.y + len * -Math.sin(theta)));
 	}
 
 	public void draw(Graphics g) {
@@ -184,64 +223,66 @@ class Sensor {
 		g.drawLine((int) pos.x, (int) pos.y, (int) (pos.x + len * Math.cos(theta)),
 				(int) (pos.y + len * -Math.sin(theta)));
 		close.fillCircle(10, g);
-		g.drawString(data + "", (int)close.x, (int)close.y);
+		g.drawString(data + "", (int) close.x, (int) close.y);
 	}
 
 	public void update(Point pos, double theta, ArrayList<Rect> obstacles) {
 		this.pos = pos;
 		this.theta = theta + thetaOff;
 		double m = -Math.tan(this.theta);
-		close = new Point((pos.x + len * Math.cos(this.theta)),(pos.y + len * -Math.sin(this.theta)));
-		for(Rect r : obstacles) {
-		//y-y0 = m(x-x0)
-			double yInt = m*(r.pos.x - pos.x) + pos.y;
-			if(yInt > r.pos.y && yInt < r.pos.y + r.h) {
-				if(pos.distanceTo(new Point(r.pos.x,yInt)) < pos.distanceTo(close)) {
-					close = new Point(r.pos.x,yInt);
+		close = new Point((pos.x + len * Math.cos(this.theta)), (pos.y + len * -Math.sin(this.theta)));
+		for (Rect r : obstacles) {
+			// y-y0 = m(x-x0)
+			double yInt = m * (r.pos.x - pos.x) + pos.y;
+			if (yInt > r.pos.y && yInt < r.pos.y + r.h) {
+				if (pos.distanceTo(new Point(r.pos.x, yInt)) < pos.distanceTo(close)) {
+					close = new Point(r.pos.x, yInt);
 				}
 			}
-			yInt = m*(r.pos.x + r.w - pos.x) + pos.y;
-			if(yInt > r.pos.y && yInt < r.pos.y + r.h) {
-				if(pos.distanceTo(new Point(r.pos.x + r.w,yInt)) < pos.distanceTo(close)) {
-					close = new Point(r.pos.x + r.w,yInt);
+			yInt = m * (r.pos.x + r.w - pos.x) + pos.y;
+			if (yInt > r.pos.y && yInt < r.pos.y + r.h) {
+				if (pos.distanceTo(new Point(r.pos.x + r.w, yInt)) < pos.distanceTo(close)) {
+					close = new Point(r.pos.x + r.w, yInt);
 				}
 			}
-			//((y-y0)/m) + x0 = x
-			double xInt = ((r.pos.y - pos.y)/m) + pos.x;
-			if(xInt > r.pos.x && xInt < r.pos.x + r.w) {
-				if(pos.distanceTo(new Point(xInt, r.pos.y)) < pos.distanceTo(close)) {
+			// ((y-y0)/m) + x0 = x
+			double xInt = ((r.pos.y - pos.y) / m) + pos.x;
+			if (xInt > r.pos.x && xInt < r.pos.x + r.w) {
+				if (pos.distanceTo(new Point(xInt, r.pos.y)) < pos.distanceTo(close)) {
 					close = new Point(xInt, r.pos.y);
 				}
 			}
-			xInt = ((r.pos.y + r.h - pos.y)/m) + pos.x;
-			if(xInt > r.pos.x && xInt < r.pos.x + r.w) {
-				if(pos.distanceTo(new Point(xInt, r.pos.y + r.h)) < pos.distanceTo(close)) {
+			xInt = ((r.pos.y + r.h - pos.y) / m) + pos.x;
+			if (xInt > r.pos.x && xInt < r.pos.x + r.w) {
+				if (pos.distanceTo(new Point(xInt, r.pos.y + r.h)) < pos.distanceTo(close)) {
 					close = new Point(xInt, r.pos.y + r.h);
 				}
 			}
-			
-			
+
 		}
-		data = (float) (pos.distanceTo(close)/len);
-		
+		data = (float) (pos.distanceTo(close) / len);
+
 	}
 
 }
-class Line{
+
+class Line {
 	double m;
 	Point pos;
+
 	public Line(double m, Point pos) {
 		super();
 		this.m = m;
 		this.pos = pos;
 	}
+
 	public Point getIntersection(Line l2) {
-		double x = (m*pos.x - pos.y + l2.pos.y - l2.m*l2.pos.x)/(m - l2.m);
-		double y = m*(x - pos.x) + pos.y;
-		
-		return new Point(x,y);
+		double x = (m * pos.x - pos.y + l2.pos.y - l2.m * l2.pos.x) / (m - l2.m);
+		double y = m * (x - pos.x) + pos.y;
+
+		return new Point(x, y);
 	}
-	
+
 }
 
 class Rocket {
@@ -249,15 +290,16 @@ class Rocket {
 	Sensor[] sensors = new Sensor[8];
 	double w = 50.0, h = 200.0;
 	Vec2 vel = new Vec2(0, 0);
-	double alpha = 0.00001;
+	double alpha = 0.00000;
 	double omega = Math.toRadians(0.0);
 	double theta = Math.toRadians(0);
-	double a = 0.001;
+	double a = 0.000;
 	double friction = 0.00;
-	double maxAlpha = 0.001;
-	double maxA = 0.05;
+	double maxAlpha = 0.0001;
+	double maxA = 0.01;
 	int lifeSpan = 150;
 	int age = 0;
+	int maxAge = 300;
 	boolean dead;
 	double fitness = 0;
 	boolean achieved;
@@ -273,6 +315,18 @@ class Rocket {
 		for (int i = 0; i < sensors.length; i++) {
 			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
 		}
+		updateCorners();
+
+	}
+
+	public Rocket(Point pos, Point target) {
+		super();
+		this.pos = pos;
+		this.target = target;
+		for (int i = 0; i < sensors.length; i++) {
+			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
+		}
+		this.brain = new NeuralNetwork(sensors.length + 6, 2);
 		updateCorners();
 
 	}
@@ -311,33 +365,52 @@ class Rocket {
 				pos.y - d * Math.sin(ha + va + ha + va + theta - ha - Math.toRadians(45)));
 	}
 
-	public void update(ArrayList<Rect> obstacles) { //sensors, velocityLin, velocityAng, pos, theta
-		double[][] input = new double[1][sensors.length + 4];
-		for(int i = 0; i < input[0].length - 4; i++) {
-			input[0][i] = sensors[i].data;
+	public void update(ArrayList<Rect> obstacles) { // sensors, velocityLin, velocityAng, pos, theta
+
+		if (!dead && (pos.x > SmartRocketsMain.screenWidth || pos.y > SmartRocketsMain.screenHeight || pos.x < 0
+				|| pos.y < 0 || age > maxAge)) {
+			dead = true;
+			fitness = 1 / pos.distanceTo(target);
+
 		}
-		input[0][sensors.length-4] = vel.getMagnitude();
-		input[0][sensors.length-3] = omega;
-		input[0][sensors.length-2] = pos.x/SmartRocketsMain.screenWidth;
-		input[0][sensors.length-1] = pos.y/SmartRocketsMain.screenHeight;
-		Matrix out = brain.feedFoward(Matrix(input));
-		
-		omega += alpha;
-		theta += omega;
+		if (!dead) {
+			double[][] input = new double[sensors.length + 6][1];
+			for (int i = 0; i < input.length - 6; i++) {
+				input[i][0] = 1 - sensors[i].data;
+			}
+			input[sensors.length][0] = vel.x;
+			input[sensors.length + 1][0] = vel.y;
+			input[sensors.length + 2][0] = pos.x / SmartRocketsMain.screenWidth;
+			input[sensors.length + 3][0] = pos.y / SmartRocketsMain.screenHeight;
+			input[sensors.length + 4][0] = omega;
+			input[sensors.length + 5][0] = theta % (2 * Math.PI);
 
-		vel.x += a * Math.cos(theta);
-		vel.y -= a * Math.sin(theta);
+			Matrix out = brain.feedFoward(new Matrix(input));
 
-		omega *= 1 - friction;
-		vel.x *= 1 - friction;
-		vel.y *= 1 - friction;
+			alpha = out.data[0][0] * maxAlpha;
+			a = out.data[1][0] * maxA;
 
-		pos.add(vel);
+//		out.show();
+//		System.out.println();
 
-		for (Sensor s : sensors) {
-			s.update(pos, theta, obstacles);
+			omega += alpha;
+			theta += omega;
+
+			vel.x += a * Math.cos(theta);
+			vel.y -= a * Math.sin(theta);
+
+			omega *= 1 - friction;
+			vel.x *= 1 - friction;
+			vel.y *= 1 - friction;
+
+			pos.add(vel);
+
+			for (Sensor s : sensors) {
+				s.update(pos, theta, obstacles);
+			}
+			updateCorners();
+			age++;
 		}
-		updateCorners();
 	}
 }
 
@@ -351,7 +424,7 @@ class Point {
 
 	public void fillCircle(int d, Graphics g) {
 		g.fillOval((int) (x - d / 2), (int) (y - d / 2), d, d);
-		
+
 	}
 
 	public double distanceTo(Point p2) {

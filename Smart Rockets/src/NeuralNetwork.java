@@ -37,6 +37,14 @@ public class NeuralNetwork {
 			this.layers = newLayers;
 			this.learningRate = nn.learningRate;
 		}
+		public void mutate(float r) {
+			for(Matrix m : weights) {
+				m.mutate(r);
+			}
+			for(Matrix m : biases) {
+				m.mutate(r);
+			}
+		}
 
 		public Matrix feedFoward(Matrix input) {
 			layers[0] = input;

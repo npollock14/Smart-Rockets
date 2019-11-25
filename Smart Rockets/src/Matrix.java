@@ -21,7 +21,7 @@ public class Matrix {
 				this.data[i][j] = data[i][j];
 	}
 
-	static Matrix fromArray(double[][] data) {
+	public static Matrix fromArray(double[][] data) {
 		Matrix m = new Matrix(data);
 		return m;
 
@@ -171,6 +171,19 @@ public class Matrix {
 		}
 		return x;
 
+	}
+	public void mutate(float r) {
+		for(int x = 0; x < data.length; x++) {
+			for(int y = 0; y < data[x].length; y ++) {
+				data[x][y] += (Math.random()*2 - 1) * r;
+				if(data[x][y] > 1) {
+					data[x][y] = 2-data[x][y];
+				}
+				if(data[x][y] < -1) {
+					data[x][y] = -data[x][y] - 2;
+				}
+			}
+		}
 	}
 
 	public void scalarMult(double d) {
