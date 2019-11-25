@@ -25,7 +25,7 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	int frame = 0;
-	Rocket r = new Rocket(new Point(300, 300), new Point(0, 0), new NeuralNetwork(4, 4, 4));
+	Rocket r = new Rocket(new Point(300, 700), new Point(0, 0), new NeuralNetwork(4, 4, 4));
 	Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	// ============== end of settings ==================
@@ -168,14 +168,15 @@ class Sensor {
 	double thetaOff;
 	double theta = 0.0;
 	double len;
-	double data;
+	float data;
 
 	public Sensor(Point pos, double thetaOff, double len) {
 		super();
 		this.pos = pos;
 		this.len = len;
 		this.thetaOff = thetaOff;
-		this.data = len;
+		this.data = (float) len;
+		close = new Point((pos.x + len * Math.cos(theta)),(pos.y + len * -Math.sin(theta)));
 	}
 
 	public void draw(Graphics g) {
@@ -183,13 +184,14 @@ class Sensor {
 		g.drawLine((int) pos.x, (int) pos.y, (int) (pos.x + len * Math.cos(theta)),
 				(int) (pos.y + len * -Math.sin(theta)));
 		close.fillCircle(10, g);
+		g.drawString(data + "", (int)close.x, (int)close.y);
 	}
 
 	public void update(Point pos, double theta, ArrayList<Rect> obstacles) {
 		this.pos = pos;
 		this.theta = theta + thetaOff;
-		double m = Math.tan(theta);
-		close = new Point((pos.x + len * Math.cos(theta)),(pos.y + len * -Math.sin(theta)));
+		double m = -Math.tan(this.theta);
+		close = new Point((pos.x + len * Math.cos(this.theta)),(pos.y + len * -Math.sin(this.theta)));
 		for(Rect r : obstacles) {
 		//y-y0 = m(x-x0)
 			double yInt = m*(r.pos.x - pos.x) + pos.y;
@@ -205,10 +207,22 @@ class Sensor {
 				}
 			}
 			//((y-y0)/m) + x0 = x
-			//double xInt = 
+			double xInt = ((r.pos.y - pos.y)/m) + pos.x;
+			if(xInt > r.pos.x && xInt < r.pos.x + r.w) {
+				if(pos.distanceTo(new Point(xInt, r.pos.y)) < pos.distanceTo(close)) {
+					close = new Point(xInt, r.pos.y);
+				}
+			}
+			xInt = ((r.pos.y + r.h - pos.y)/m) + pos.x;
+			if(xInt > r.pos.x && xInt < r.pos.x + r.w) {
+				if(pos.distanceTo(new Point(xInt, r.pos.y + r.h)) < pos.distanceTo(close)) {
+					close = new Point(xInt, r.pos.y + r.h);
+				}
+			}
 			
 			
 		}
+		data = (float) (pos.distanceTo(close)/len);
 		
 	}
 
@@ -235,10 +249,10 @@ class Rocket {
 	Sensor[] sensors = new Sensor[8];
 	double w = 50.0, h = 200.0;
 	Vec2 vel = new Vec2(0, 0);
-	double alpha = -0.0001;
-	double omega = Math.toRadians(1.0);
+	double alpha = 0.00001;
+	double omega = Math.toRadians(0.0);
 	double theta = Math.toRadians(0);
-	double a = 0.01;
+	double a = 0.001;
 	double friction = 0.00;
 	double maxAlpha = 0.001;
 	double maxA = 0.05;
