@@ -19,13 +19,14 @@ public class SmartRocketsMain extends JPanel
 		implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 	private static final long serialVersionUID = 1L;
 
+	static int generation = 0;
 	static int screenWidth = 1200;
 	static int screenHeight = 650;
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 10;
+	int numRockets = 1000;
 	int frame = 0;
 	// Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
@@ -35,10 +36,12 @@ public class SmartRocketsMain extends JPanel
 
 	public void paint(Graphics g) {
 		super.paintComponent(g);
-		g.setColor(Color.WHITE);
-		g.drawString("" + frame, 20, 20);
 		g.setColor(new Color(30, 30, 30));
 		g.fillRect(0, 0, screenWidth, screenHeight);
+		g.setColor(Color.WHITE);
+		g.drawString("" + frame, 20, 20);
+		g.drawString("Generation: " + generation, 20, 60);
+
 		g.setColor(Color.red);
 		for (Rect r : obstacles) {
 			r.draw(g);
@@ -50,6 +53,7 @@ public class SmartRocketsMain extends JPanel
 	}
 
 	public void update() throws InterruptedException {
+		do {
 		allDead = true;
 		for (Rocket r : rockets) {
 			r.update(obstacles);
@@ -64,30 +68,33 @@ public class SmartRocketsMain extends JPanel
 					highFitness = r.fitness;
 				}
 			}
-			for(Rocket r : rockets) {
+			System.out.println(1 / highFitness);
+			for (Rocket r : rockets) {
 				r.fitness /= highFitness;
 			}
-			for(Rocket r : rockets) {
-				for(int i = 0; i < r.fitness * 10; i++) {
+			for (Rocket r : rockets) {
+				for (int i = 0; i < r.fitness * 10; i++) {
 					genePool.add(r);
 				}
 			}
 			rockets.clear();
-			for(int i = 0; i < numRockets; i++) {
-				NeuralNetwork newBrain = new NeuralNetwork(genePool.get((int)(Math.random() * genePool.size())).brain);
+			for (int i = 0; i < numRockets; i++) {
+				NeuralNetwork newBrain = new NeuralNetwork(genePool.get((int) (Math.random() * genePool.size())).brain);
 				newBrain.mutate(.1f);
-				rockets.add(new Rocket(new Point(300, 700), new Point(0, 0)));
+				rockets.add(new Rocket(new Point(500, 500), new Point(screenWidth, 0), newBrain));
 			}
 			genePool.clear();
-			
+			generation++;
+
 		}
 
 		frame++;
+		}while(keys[32]);
 	}
 
 	private void init() {
 		for (int i = 0; i < numRockets; i++) {
-			rockets.add(new Rocket(new Point(300, 700), new Point(0, 0)));
+			rockets.add(new Rocket(new Point(500, 500), new Point(screenWidth, 0)));
 		}
 		// obstacles.add(obs);
 	}
@@ -126,7 +133,7 @@ public class SmartRocketsMain extends JPanel
 
 		init();
 
-		t = new Timer(15, this);
+		t = new Timer(10, this);
 		t.start();
 		f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		f.setVisible(true);
@@ -287,19 +294,18 @@ class Line {
 
 class Rocket {
 	Point pos, target;
-	Sensor[] sensors = new Sensor[8];
-	double w = 50.0, h = 200.0;
+	Sensor[] sensors = new Sensor[0];
+	double w = 10.0, h = 40.0;
 	Vec2 vel = new Vec2(0, 0);
 	double alpha = 0.00000;
 	double omega = Math.toRadians(0.0);
-	double theta = Math.toRadians(0);
+	double theta = Math.toRadians(90);
 	double a = 0.000;
 	double friction = 0.00;
-	double maxAlpha = 0.0001;
-	double maxA = 0.01;
-	int lifeSpan = 150;
+	double maxAlpha = 0.00005;
+	double maxA = 0.005;
 	int age = 0;
-	int maxAge = 300;
+	int maxAge = 800;
 	boolean dead;
 	double fitness = 0;
 	boolean achieved;
@@ -326,7 +332,7 @@ class Rocket {
 		for (int i = 0; i < sensors.length; i++) {
 			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
 		}
-		this.brain = new NeuralNetwork(sensors.length + 6, 2);
+		this.brain = new NeuralNetwork(sensors.length + 6, 8, 4, 2);
 		updateCorners();
 
 	}
@@ -334,11 +340,10 @@ class Rocket {
 	public void show(Graphics g) {
 
 		g.setColor(Color.white);
-		g.fillOval((int) pos.x - 5, (int) pos.y - 5, 10, 10);
 
-		for (Sensor s : sensors) {
-			s.draw(g);
-		}
+//		for (Sensor s : sensors) {
+//			s.draw(g);
+//		}
 
 		g.setColor(Color.white);
 		ul.drawLine(ur, g);
@@ -387,8 +392,10 @@ class Rocket {
 
 			Matrix out = brain.feedFoward(new Matrix(input));
 
-			alpha = out.data[0][0] * maxAlpha;
-			a = out.data[1][0] * maxA;
+			alpha = (out.data[0][0] * 2 - 1) * maxAlpha;
+			a = (out.data[1][0] * 2 - 1) * maxA;
+
+			// System.out.println(out.data[0][0] + " \n " + out.data[1][0]);
 
 //		out.show();
 //		System.out.println();
