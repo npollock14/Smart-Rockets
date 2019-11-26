@@ -26,8 +26,11 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 1000;
+	int numRockets = 100;
 	int frame = 0;
+	int skip = 0;
+	Point currentTarget;
+	static int targetDiam = 50;
 	// Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	ArrayList<Rocket> rockets = new ArrayList<Rocket>();
@@ -49,52 +52,59 @@ public class SmartRocketsMain extends JPanel
 		for (Rocket r : rockets) {
 			r.show(g);
 		}
+		g.setColor(Color.green);
+		g.fillOval((int) (currentTarget.x - targetDiam / 2), (int) (currentTarget.y - targetDiam / 2), targetDiam,
+				targetDiam);
 
 	}
 
 	public void update() throws InterruptedException {
-		do {
-		allDead = true;
-		for (Rocket r : rockets) {
-			r.update(obstacles);
-			if (!r.dead) {
-				allDead = false;
-			}
-		}
-		if (allDead) {
-			double highFitness = rockets.get(0).fitness;
+		skip = keys[32] || keysToggled[88] ? Rocket.maxAge : 1;
+		for (int f = 0; f < skip; f++) {
+			allDead = true;
 			for (Rocket r : rockets) {
-				if (r.fitness > highFitness) {
-					highFitness = r.fitness;
+				r.update(obstacles);
+				if (!r.dead) {
+					allDead = false;
 				}
 			}
-			System.out.println(1 / highFitness);
-			for (Rocket r : rockets) {
-				r.fitness /= highFitness;
-			}
-			for (Rocket r : rockets) {
-				for (int i = 0; i < r.fitness * 10; i++) {
-					genePool.add(r);
+			if (allDead) {
+				double highFitness = rockets.get(0).fitness;
+				for (Rocket r : rockets) {
+					if (r.fitness > highFitness) {
+						highFitness = r.fitness;
+					}
 				}
-			}
-			rockets.clear();
-			for (int i = 0; i < numRockets; i++) {
-				NeuralNetwork newBrain = new NeuralNetwork(genePool.get((int) (Math.random() * genePool.size())).brain);
-				newBrain.mutate(.1f);
-				rockets.add(new Rocket(new Point(500, 500), new Point(screenWidth, 0), newBrain));
-			}
-			genePool.clear();
-			generation++;
+				System.out.println(highFitness);
+				for (Rocket r : rockets) {
+					r.fitness /= highFitness;
+				}
+				for (Rocket r : rockets) {
+					for (int i = 0; i < 10*Math.pow(r.fitness, 5); i++) {
+						genePool.add(r);
+					}
+				}
+				rockets.clear();
+				currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
+				for (int i = 0; i < numRockets; i++) {
+					NeuralNetwork newBrain = new NeuralNetwork(
+							genePool.get((int) (Math.random() * genePool.size())).brain);
+					newBrain.mutate(.1f);
+					rockets.add(new Rocket(new Point(screenWidth/2,screenHeight/2), currentTarget, newBrain));
+				}
+				genePool.clear();
+				generation++;
 
+			}
+
+			frame++;
 		}
-
-		frame++;
-		}while(keys[32]);
 	}
 
 	private void init() {
+		currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
 		for (int i = 0; i < numRockets; i++) {
-			rockets.add(new Rocket(new Point(500, 500), new Point(screenWidth, 0)));
+			rockets.add(new Rocket(new Point(500, 500), currentTarget));
 		}
 		// obstacles.add(obs);
 	}
@@ -292,135 +302,6 @@ class Line {
 
 }
 
-class Rocket {
-	Point pos, target;
-	Sensor[] sensors = new Sensor[0];
-	double w = 10.0, h = 40.0;
-	Vec2 vel = new Vec2(0, 0);
-	double alpha = 0.00000;
-	double omega = Math.toRadians(0.0);
-	double theta = Math.toRadians(90);
-	double a = 0.000;
-	double friction = 0.00;
-	double maxAlpha = 0.00005;
-	double maxA = 0.005;
-	int age = 0;
-	int maxAge = 800;
-	boolean dead;
-	double fitness = 0;
-	boolean achieved;
-	NeuralNetwork brain;
-	Point ul, ur, bl, br;
-	double d = Math.sqrt(Math.pow(w / 2, 2) + Math.pow(h / 2, 2));
-
-	public Rocket(Point pos, Point target, NeuralNetwork brain) {
-		super();
-		this.pos = pos;
-		this.target = target;
-		this.brain = brain;
-		for (int i = 0; i < sensors.length; i++) {
-			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
-		}
-		updateCorners();
-
-	}
-
-	public Rocket(Point pos, Point target) {
-		super();
-		this.pos = pos;
-		this.target = target;
-		for (int i = 0; i < sensors.length; i++) {
-			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
-		}
-		this.brain = new NeuralNetwork(sensors.length + 6, 8, 4, 2);
-		updateCorners();
-
-	}
-
-	public void show(Graphics g) {
-
-		g.setColor(Color.white);
-
-//		for (Sensor s : sensors) {
-//			s.draw(g);
-//		}
-
-		g.setColor(Color.white);
-		ul.drawLine(ur, g);
-		ul.drawLine(bl, g);
-		ur.drawLine(br, g);
-		bl.drawLine(br, g);
-
-		// g.drawString(Math.toDegrees(theta) + " deg", (int) (pos.x + w), (int) (pos.y
-		// - h));
-
-	}
-
-	public void updateCorners() {
-		double va = 2 * Math.atan2(w / 2, h / 2);
-		double ha = (Math.PI * 2 - va * 2) / 2;
-
-		ul = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va),
-				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va));
-		ur = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va + ha),
-				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va + ha));
-		br = new Point(pos.x + d * Math.cos(theta - ha - Math.toRadians(45) + va + ha + va),
-				pos.y - d * Math.sin(theta - ha - Math.toRadians(45) + va + ha + va));
-		bl = new Point(pos.x + d * Math.cos(va + ha + va + ha + theta - ha - Math.toRadians(45)),
-				pos.y - d * Math.sin(ha + va + ha + va + theta - ha - Math.toRadians(45)));
-	}
-
-	public void update(ArrayList<Rect> obstacles) { // sensors, velocityLin, velocityAng, pos, theta
-
-		if (!dead && (pos.x > SmartRocketsMain.screenWidth || pos.y > SmartRocketsMain.screenHeight || pos.x < 0
-				|| pos.y < 0 || age > maxAge)) {
-			dead = true;
-			fitness = 1 / pos.distanceTo(target);
-
-		}
-		if (!dead) {
-			double[][] input = new double[sensors.length + 6][1];
-			for (int i = 0; i < input.length - 6; i++) {
-				input[i][0] = 1 - sensors[i].data;
-			}
-			input[sensors.length][0] = vel.x;
-			input[sensors.length + 1][0] = vel.y;
-			input[sensors.length + 2][0] = pos.x / SmartRocketsMain.screenWidth;
-			input[sensors.length + 3][0] = pos.y / SmartRocketsMain.screenHeight;
-			input[sensors.length + 4][0] = omega;
-			input[sensors.length + 5][0] = theta % (2 * Math.PI);
-
-			Matrix out = brain.feedFoward(new Matrix(input));
-
-			alpha = (out.data[0][0] * 2 - 1) * maxAlpha;
-			a = (out.data[1][0] * 2 - 1) * maxA;
-
-			// System.out.println(out.data[0][0] + " \n " + out.data[1][0]);
-
-//		out.show();
-//		System.out.println();
-
-			omega += alpha;
-			theta += omega;
-
-			vel.x += a * Math.cos(theta);
-			vel.y -= a * Math.sin(theta);
-
-			omega *= 1 - friction;
-			vel.x *= 1 - friction;
-			vel.y *= 1 - friction;
-
-			pos.add(vel);
-
-			for (Sensor s : sensors) {
-				s.update(pos, theta, obstacles);
-			}
-			updateCorners();
-			age++;
-		}
-	}
-}
-
 class Point {
 	double x, y;
 
@@ -495,26 +376,4 @@ class Vec2 {
 		return 0;
 	}
 
-}
-
-class Rect {
-	Point pos;
-	double h, w;
-
-	public Rect(double x, double y, double w, double h) {
-
-		this.pos = new Point(x, y);
-		this.h = h;
-		this.w = w;
-
-	}
-
-	public void draw(Graphics g) {
-		g.drawRect((int) pos.x, (int) pos.y, (int) w, (int) h);
-	}
-
-	public boolean intersects(Rect r) {
-		return (pos.inside(r) || new Point(pos.x + w, pos.y).inside(r) || new Point(pos.x + w, pos.y + h).inside(r)
-				|| new Point(pos.x, pos.y + h).inside(r));
-	}
 }
