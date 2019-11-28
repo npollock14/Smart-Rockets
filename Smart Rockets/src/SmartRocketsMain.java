@@ -1,3 +1,4 @@
+import java.awt.Canvas;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.event.ActionEvent;
@@ -19,15 +20,15 @@ public class SmartRocketsMain extends JPanel
 		implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 	private static final long serialVersionUID = 1L;
 
-	static int generation = 0;
+	static long generation = 0;
 	static int screenWidth = 1200;
 	static int screenHeight = 650;
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 100;
-	int frame = 0;
+	int numRockets = 10000;
+	long frame = 0;
 	int skip = 0;
 	Point currentTarget;
 	static int targetDiam = 50;
@@ -35,15 +36,16 @@ public class SmartRocketsMain extends JPanel
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	ArrayList<Rocket> rockets = new ArrayList<Rocket>();
 	ArrayList<Rocket> genePool = new ArrayList<Rocket>();
+	ArrayList<Double> averages = new ArrayList<Double>();
+	double avgAcc = 0.0;
+	double sum = 0;
 	// ============== end of settings ==================
 
 	public void paint(Graphics g) {
 		super.paintComponent(g);
 		g.setColor(new Color(30, 30, 30));
 		g.fillRect(0, 0, screenWidth, screenHeight);
-		g.setColor(Color.WHITE);
-		g.drawString("" + frame, 20, 20);
-		g.drawString("Generation: " + generation, 20, 60);
+		
 
 		g.setColor(Color.red);
 		for (Rect r : obstacles) {
@@ -52,45 +54,67 @@ public class SmartRocketsMain extends JPanel
 		for (Rocket r : rockets) {
 			r.show(g);
 		}
+		
 		g.setColor(Color.green);
 		g.fillOval((int) (currentTarget.x - targetDiam / 2), (int) (currentTarget.y - targetDiam / 2), targetDiam,
 				targetDiam);
+		g.setColor(new Color(30,30,30));
+		g.fillRect(0, 0, 150, 100);
+		g.setColor(Color.WHITE);
+		g.drawString("" + frame, 20, 20);
+		g.drawString("Generation: " + generation, 20, 60);
+		g.drawString("Avg: " + (float)avgAcc*100 + "%" , 20, 90);
 
 	}
 
 	public void update() throws InterruptedException {
-		skip = keys[32] || keysToggled[88] ? Rocket.maxAge : 1;
+		skip = keys[32] || keysToggled[88] ? Rocket.maxAge + 1 : 1;
+		
 		for (int f = 0; f < skip; f++) {
+			if(keysToggled[84]) {
+			currentTarget = getMousePos();
+			}
 			allDead = true;
 			for (Rocket r : rockets) {
+				if(keys[90]) {
+					System.out.println("DEBUG");
+				}
+				
+				r.target = currentTarget;
 				r.update(obstacles);
 				if (!r.dead) {
 					allDead = false;
 				}
 			}
 			if (allDead) {
-				double highFitness = rockets.get(0).fitness;
-				for (Rocket r : rockets) {
-					if (r.fitness > highFitness) {
-						highFitness = r.fitness;
-					}
-				}
-				System.out.println(highFitness);
-				for (Rocket r : rockets) {
-					r.fitness /= highFitness;
-				}
-				for (Rocket r : rockets) {
-					for (int i = 0; i < 10*Math.pow(r.fitness, 5); i++) {
+				//make all fitnesses between 0 and 1
+				normalizeFitnesses();
+				
+				//add to gene pool based on fitness
+				int achieved = 0;
+				for (Rocket r : rockets) { 
+					if(r.achieved) achieved++;
+					for (int i = 0; i < getChildren(r.fitness); i++) {
 						genePool.add(r);
 					}
 				}
+				averages.add((double)achieved / (double) numRockets);
+				sum += averages.get(averages.size()-1);
+				avgAcc = (float)(sum / (double)averages.size());
+				System.out.println(((float)achieved / (float)numRockets) * 100 + "%" + " (" + (float)currentTarget.x + ", " + (float)currentTarget.y + ")");
+				//kill all of current generation
 				rockets.clear();
-				currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
+				
+				//generate a new random target
+				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(Math.random() * screenWidth, Math.random() * screenHeight);
+				//currentTarget = new Point(screenWidth, 100);
+
+				//create new population
 				for (int i = 0; i < numRockets; i++) {
 					NeuralNetwork newBrain = new NeuralNetwork(
 							genePool.get((int) (Math.random() * genePool.size())).brain);
-					newBrain.mutate(.1f);
-					rockets.add(new Rocket(new Point(screenWidth/2,screenHeight/2), currentTarget, newBrain));
+					newBrain.mutate(.08f); //controls mutation rate
+					rockets.add(new Rocket(new Point(Math.random() * screenWidth,Math.random() * screenHeight), currentTarget, newBrain));
 				}
 				genePool.clear();
 				generation++;
@@ -101,12 +125,42 @@ public class SmartRocketsMain extends JPanel
 		}
 	}
 
+	private Point getMousePos() {
+		Point p;
+try {
+	p = new Point(getMousePosition().x, getMousePosition().y);
+	
+}catch (Exception e){
+	p = new Point(0,0);
+}
+return p;
+	}
+
+	private int getChildren(double fitness) {
+		return (int) (100*Math.pow(fitness, 1));
+	}
+
+	private void normalizeFitnesses() {
+		double highFitness = rockets.get(0).fitness;
+		for (Rocket r : rockets) {
+			if (r.fitness > highFitness) {
+				highFitness = r.fitness;
+			}
+		}
+		for (Rocket r : rockets) {
+			r.fitness /= highFitness;
+		}		
+	}
+
 	private void init() {
 		currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
 		for (int i = 0; i < numRockets; i++) {
 			rockets.add(new Rocket(new Point(500, 500), currentTarget));
 		}
-		// obstacles.add(obs);
+//		obstacles.add(new Rect(0,-90,screenWidth, 100));
+//		obstacles.add(new Rect(-90,0,100, screenHeight));
+//		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
+//		obstacles.add(new Rect(screenWidth - 10,0,100, screenHeight));
 	}
 
 	// ==================code above ===========================
@@ -219,161 +273,4 @@ public class SmartRocketsMain extends JPanel
 
 }
 
-class Sensor {
-	Point pos, close;
-	double thetaOff;
-	double theta = 0.0;
-	double len;
-	float data;
 
-	public Sensor(Point pos, double thetaOff, double len) {
-		super();
-		this.pos = pos;
-		this.len = len;
-		this.thetaOff = thetaOff;
-		this.data = (float) len;
-		close = new Point((pos.x + len * Math.cos(theta)), (pos.y + len * -Math.sin(theta)));
-	}
-
-	public void draw(Graphics g) {
-		g.setColor(Color.yellow);
-		g.drawLine((int) pos.x, (int) pos.y, (int) (pos.x + len * Math.cos(theta)),
-				(int) (pos.y + len * -Math.sin(theta)));
-		close.fillCircle(10, g);
-		g.drawString(data + "", (int) close.x, (int) close.y);
-	}
-
-	public void update(Point pos, double theta, ArrayList<Rect> obstacles) {
-		this.pos = pos;
-		this.theta = theta + thetaOff;
-		double m = -Math.tan(this.theta);
-		close = new Point((pos.x + len * Math.cos(this.theta)), (pos.y + len * -Math.sin(this.theta)));
-		for (Rect r : obstacles) {
-			// y-y0 = m(x-x0)
-			double yInt = m * (r.pos.x - pos.x) + pos.y;
-			if (yInt > r.pos.y && yInt < r.pos.y + r.h) {
-				if (pos.distanceTo(new Point(r.pos.x, yInt)) < pos.distanceTo(close)) {
-					close = new Point(r.pos.x, yInt);
-				}
-			}
-			yInt = m * (r.pos.x + r.w - pos.x) + pos.y;
-			if (yInt > r.pos.y && yInt < r.pos.y + r.h) {
-				if (pos.distanceTo(new Point(r.pos.x + r.w, yInt)) < pos.distanceTo(close)) {
-					close = new Point(r.pos.x + r.w, yInt);
-				}
-			}
-			// ((y-y0)/m) + x0 = x
-			double xInt = ((r.pos.y - pos.y) / m) + pos.x;
-			if (xInt > r.pos.x && xInt < r.pos.x + r.w) {
-				if (pos.distanceTo(new Point(xInt, r.pos.y)) < pos.distanceTo(close)) {
-					close = new Point(xInt, r.pos.y);
-				}
-			}
-			xInt = ((r.pos.y + r.h - pos.y) / m) + pos.x;
-			if (xInt > r.pos.x && xInt < r.pos.x + r.w) {
-				if (pos.distanceTo(new Point(xInt, r.pos.y + r.h)) < pos.distanceTo(close)) {
-					close = new Point(xInt, r.pos.y + r.h);
-				}
-			}
-
-		}
-		data = (float) (pos.distanceTo(close) / len);
-
-	}
-
-}
-
-class Line {
-	double m;
-	Point pos;
-
-	public Line(double m, Point pos) {
-		super();
-		this.m = m;
-		this.pos = pos;
-	}
-
-	public Point getIntersection(Line l2) {
-		double x = (m * pos.x - pos.y + l2.pos.y - l2.m * l2.pos.x) / (m - l2.m);
-		double y = m * (x - pos.x) + pos.y;
-
-		return new Point(x, y);
-	}
-
-}
-
-class Point {
-	double x, y;
-
-	public Point(double x, double y) {
-		this.x = x;
-		this.y = y;
-	}
-
-	public void fillCircle(int d, Graphics g) {
-		g.fillOval((int) (x - d / 2), (int) (y - d / 2), d, d);
-
-	}
-
-	public double distanceTo(Point p2) {
-		return Math.sqrt((this.x - p2.x) * (this.x - p2.x) + (this.y - p2.y) * (this.y - p2.y));
-	}
-
-	public void drawLine(Point p2, Graphics g) {
-		g.drawLine((int) x, (int) y, (int) p2.x, (int) p2.y);
-	}
-
-	public void drawCircle(int d, Graphics g) {
-		g.drawOval((int) (x - d / 2), (int) (y - d / 2), d, d);
-	}
-
-	public double angleTo(Point p2) {
-		try {
-			return Math.atan2(this.y - p2.y, this.x - p2.x);
-		} catch (Exception e) {
-
-		}
-		return 0;
-	}
-
-	public boolean inside(Rect r) {
-		return (x > r.pos.x && x < r.pos.x + r.w && y > r.pos.y && y < r.pos.y + r.h);
-	}
-
-	public void add(Vec2 v) {
-		x += v.x;
-		y += v.y;
-	}
-}
-
-class Vec2 {
-	double x, y;
-
-	public Vec2(double x, double y) {
-		this.x = x;
-		this.y = y;
-	}
-
-	public Vec2() {
-		this.x = Math.random() * 2 - 1;
-		this.y = Math.random() * 2 - 1;
-		double mag = this.getMagnitude();
-		this.x /= mag;
-		this.y /= mag;
-
-	}
-
-	public double getMagnitude() {
-		return Math.sqrt(x * x + y * y);
-	}
-
-	public double getAngle() {
-		try {
-			return Math.atan2(this.y, this.x);
-		} catch (Exception e) {
-
-		}
-		return 0;
-	}
-
-}
