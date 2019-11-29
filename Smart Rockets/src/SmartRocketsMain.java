@@ -27,7 +27,7 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 10000;
+	int numRockets = 100;
 	long frame = 0;
 	int skip = 0;
 	Point currentTarget;
@@ -37,6 +37,7 @@ public class SmartRocketsMain extends JPanel
 	ArrayList<Rocket> rockets = new ArrayList<Rocket>();
 	ArrayList<Rocket> genePool = new ArrayList<Rocket>();
 	ArrayList<Double> averages = new ArrayList<Double>();
+	Graph avgs;
 	double avgAcc = 0.0;
 	double sum = 0;
 	// ============== end of settings ==================
@@ -64,6 +65,7 @@ public class SmartRocketsMain extends JPanel
 		g.drawString("" + frame, 20, 20);
 		g.drawString("Generation: " + generation, 20, 60);
 		g.drawString("Avg: " + (float)avgAcc*100 + "%" , 20, 90);
+		avgs.draw(g);
 
 	}
 
@@ -100,20 +102,25 @@ public class SmartRocketsMain extends JPanel
 				}
 				averages.add((double)achieved / (double) numRockets);
 				sum += averages.get(averages.size()-1);
+				if(averages.size() > 10) {
+					sum -= averages.get(0);
+					averages.remove(0); 
+				}
 				avgAcc = (float)(sum / (double)averages.size());
+				avgs.data = averages;
 				System.out.println(((float)achieved / (float)numRockets) * 100 + "%" + " (" + (float)currentTarget.x + ", " + (float)currentTarget.y + ")");
 				//kill all of current generation
 				rockets.clear();
 				
 				//generate a new random target
-				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(Math.random() * screenWidth, Math.random() * screenHeight);
+				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(screenWidth/2, screenHeight/2);//new Point(Math.random() * screenWidth, Math.random() * screenHeight);
 				//currentTarget = new Point(screenWidth, 100);
 
 				//create new population
 				for (int i = 0; i < numRockets; i++) {
 					NeuralNetwork newBrain = new NeuralNetwork(
 							genePool.get((int) (Math.random() * genePool.size())).brain);
-					newBrain.mutate(.08f); //controls mutation rate
+					newBrain.mutate(.01f); //controls mutation rate
 					rockets.add(new Rocket(new Point(Math.random() * screenWidth,Math.random() * screenHeight), currentTarget, newBrain));
 				}
 				genePool.clear();
@@ -157,6 +164,9 @@ return p;
 		for (int i = 0; i < numRockets; i++) {
 			rockets.add(new Rocket(new Point(500, 500), currentTarget));
 		}
+		
+		avgs = new Graph(new Point(0,screenHeight - 240),400,200,averages, 8, false, 0.0,1.0);
+		
 //		obstacles.add(new Rect(0,-90,screenWidth, 100));
 //		obstacles.add(new Rect(-90,0,100, screenHeight));
 //		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
