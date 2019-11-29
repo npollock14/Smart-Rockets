@@ -6,7 +6,7 @@ public class Rocket {
 	Point pos, target;
 	Sensor[] sensors = new Sensor[0];
 
-	int extraInputs = 6;
+	int extraInputs = 9;
 
 	double maxOmega = .2;
 
@@ -14,13 +14,13 @@ public class Rocket {
 	Vec2 vel = new Vec2(0, 0);
 	double alpha = 0.00000;
 	double omega = Math.toRadians(0.0);
-	double theta = Math.toRadians(90);
+	double theta = Math.toRadians(0);
 	double a = 0.000;
-	double friction = 1.000;
-	double maxAlpha = 0.003 * 300;
-	double maxA = .03 * 200;
+	double friction = 0.000;
+	double maxAlpha = 0.003;// * 100;
+	double maxA = .03;// * 200;
 	int age = 0;
-	static int maxAge = 400;
+	static int maxAge = 600;
 	boolean dead;
 	double fitness = 0;
 	double distanceTraveled;
@@ -49,7 +49,7 @@ public class Rocket {
 		for (int i = 0; i < sensors.length; i++) {
 			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
 		}
-		this.brain = new NeuralNetwork(sensors.length + extraInputs,32, 2);
+		this.brain = new NeuralNetwork(sensors.length + extraInputs,12, 2);
 		updateCorners();
 
 	}
@@ -118,8 +118,10 @@ public class Rocket {
 				input[sensors.length + 1][0] = Math.cos(pos.angleTo(target));/// 2 + .5;
 				input[sensors.length + 2][0] = Math.sin(theta);
 				input[sensors.length + 3][0] = Math.sin(pos.angleTo(target));
-				input[sensors.length + 4][0] = sameSign(Math.cos(theta), pos.x - target.x) ? 1 : 0;
-				input[sensors.length + 5][0] = sameSign(Math.sin(theta), pos.y - target.y) ? 1 : 0;
+				input[sensors.length + 4][0] = Math.cos(theta)/(pos.x - target.x);
+				input[sensors.length + 5][0] = Math.sin(theta)/(pos.y - target.y);
+//				input[sensors.length + 4][0] = sameSign(Math.cos(theta), pos.x - target.x) ? 1 : 0;
+//				input[sensors.length + 5][0] = sameSign(Math.sin(theta), pos.y - target.y) ? 1 : 0;
 //				input[sensors.length + 3][0] = ((pos.y - target.y) / (SmartRocketsMain.screenHeight));
 //				input[sensors.length + 6][0] = ((target.x) - SmartRocketsMain.screenWidth / 2)
 //						/ (SmartRocketsMain.screenWidth / 2);
@@ -127,9 +129,9 @@ public class Rocket {
 //						/ (SmartRocketsMain.screenHeight / 2);
 				// input[sensors.length + 4][0] = target.x / SmartRocketsMain.screenWidth;
 				// input[sensors.length + 5][0] = target.y / SmartRocketsMain.screenHeight;
-				// input[sensors.length + 8][0] = vel.x;
-				// input[sensors.length + 9][0] = vel.y;
-				// input[sensors.length + 10][0] = omega / maxOmega/2 + maxOmega/2;
+				input[sensors.length + 6][0] = vel.x;
+				input[sensors.length + 7][0] = vel.y;
+				input[sensors.length + 8][0] = omega / maxOmega/2 + maxOmega/2;
 
 				//new Matrix(input).show();
 

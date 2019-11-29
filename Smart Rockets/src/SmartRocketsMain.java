@@ -27,7 +27,7 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 100;
+	int numRockets = 200;
 	long frame = 0;
 	int skip = 0;
 	Point currentTarget;
@@ -113,15 +113,15 @@ public class SmartRocketsMain extends JPanel
 				rockets.clear();
 				
 				//generate a new random target
-				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(screenWidth/2, screenHeight/2);//new Point(Math.random() * screenWidth, Math.random() * screenHeight);
+				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(Math.random() * screenWidth, Math.random() * screenHeight); // new Point(screenWidth/2, screenHeight/2);//
 				//currentTarget = new Point(screenWidth, 100);
 
 				//create new population
 				for (int i = 0; i < numRockets; i++) {
 					NeuralNetwork newBrain = new NeuralNetwork(
 							genePool.get((int) (Math.random() * genePool.size())).brain);
-					newBrain.mutate(.01f); //controls mutation rate
-					rockets.add(new Rocket(new Point(Math.random() * screenWidth,Math.random() * screenHeight), currentTarget, newBrain));
+					newBrain.mutate(.025f); //controls mutation rate
+					rockets.add(new Rocket(new Point(20,screenHeight/2 - 30), currentTarget, newBrain));
 				}
 				genePool.clear();
 				generation++;
@@ -162,7 +162,7 @@ return p;
 	private void init() {
 		currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
 		for (int i = 0; i < numRockets; i++) {
-			rockets.add(new Rocket(new Point(500, 500), currentTarget));
+			rockets.add(new Rocket(new Point(20,screenHeight/2 - 30), currentTarget));
 		}
 		
 		avgs = new Graph(new Point(0,screenHeight - 240),400,200,averages, 8, false, 0.0,1.0);
