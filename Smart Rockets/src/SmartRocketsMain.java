@@ -21,8 +21,8 @@ public class SmartRocketsMain extends JPanel
 	private static final long serialVersionUID = 1L;
 
 	static long generation = 0;
-	static int screenWidth = 1200;
-	static int screenHeight = 650;
+	static int screenWidth = 1920;
+	static int screenHeight = 1080;
 	boolean[] keys = new boolean[300];
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
@@ -30,7 +30,7 @@ public class SmartRocketsMain extends JPanel
 	int numRockets = 200;
 	long frame = 0;
 	int skip = 0;
-	Point currentTarget;
+	Point currentTarget = new Point(screenWidth/2 + Math.random() * screenWidth/2, Math.random() * screenHeight);
 	static int targetDiam = 50;
 	// Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
@@ -113,7 +113,7 @@ public class SmartRocketsMain extends JPanel
 				rockets.clear();
 				
 				//generate a new random target
-				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(Math.random() * screenWidth, Math.random() * screenHeight); // new Point(screenWidth/2, screenHeight/2);//
+				if(generation % 1 == 0) currentTarget = keysToggled[84] ? getMousePos() : new Point(screenWidth/2 + Math.random() * screenWidth/2, Math.random() * screenHeight); // new Point(screenWidth/2, screenHeight/2);//
 				//currentTarget = new Point(screenWidth, 100);
 
 				//create new population
@@ -121,10 +121,12 @@ public class SmartRocketsMain extends JPanel
 					NeuralNetwork newBrain = new NeuralNetwork(
 							genePool.get((int) (Math.random() * genePool.size())).brain);
 					newBrain.mutate(.025f); //controls mutation rate
+					
 					rockets.add(new Rocket(new Point(20,screenHeight/2 - 30), currentTarget, newBrain));
 				}
 				genePool.clear();
 				generation++;
+				frame = 0;
 
 			}
 
@@ -144,6 +146,7 @@ return p;
 	}
 
 	private int getChildren(double fitness) {
+	//	System.out.println((int) (100*Math.pow(fitness, 1)));
 		return (int) (100*Math.pow(fitness, 1));
 	}
 
@@ -160,17 +163,16 @@ return p;
 	}
 
 	private void init() {
-		currentTarget = new Point(Math.random() * screenWidth, Math.random() * screenHeight);
 		for (int i = 0; i < numRockets; i++) {
 			rockets.add(new Rocket(new Point(20,screenHeight/2 - 30), currentTarget));
 		}
 		
 		avgs = new Graph(new Point(0,screenHeight - 240),400,200,averages, 8, false, 0.0,1.0);
 		
-//		obstacles.add(new Rect(0,-90,screenWidth, 100));
-//		obstacles.add(new Rect(-90,0,100, screenHeight));
-//		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
-//		obstacles.add(new Rect(screenWidth - 10,0,100, screenHeight));
+		obstacles.add(new Rect(0,-90,screenWidth, 100));
+		obstacles.add(new Rect(-90,0,100, screenHeight));
+		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
+		obstacles.add(new Rect(screenWidth - 10,0,100, screenHeight));
 	}
 
 	// ==================code above ===========================
