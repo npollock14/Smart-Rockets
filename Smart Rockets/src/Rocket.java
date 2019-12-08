@@ -20,7 +20,7 @@ public class Rocket {
 	double maxAlpha = 0.003;// * 100;
 	double maxA = .05;// * 200;
 	int age = 0;
-	static int maxAge = 400;
+	static int maxAge = 800;
 	boolean dead;
 	double fitness = 0;
 	double distanceTraveled;
@@ -50,7 +50,7 @@ public class Rocket {
 		for (int i = 0; i < sensors.length; i++) {
 			sensors[i] = new Sensor(pos, i * Math.toRadians(360 / sensors.length), 500);
 		}
-		this.brain = new NeuralNetwork(sensors.length + extraInputs, 64,16, 2);
+		this.brain = new NeuralNetwork(sensors.length + extraInputs, 16, 2); //64 - 16
 		updateCorners();
 
 	}
@@ -98,14 +98,14 @@ public class Rocket {
 			achieved = true;
 			dead = true;
 		}
-		 for(Rect r : obstacles) {
-		 if(pos.inside(r)) {
-		 dead = true;
-		 }
-		 }
+//		 for(Rect r : obstacles) {
+//		 if(pos.inside(r)) {
+//		 dead = true;
+//		 }
+//		 }
 		if (!dead && (age == maxAge || achieved)) {
 			dead = true;
-			fitness = (1 / (Math.pow(((closeEnc)), 2)) / (age / 2));
+			fitness = (1 / (Math.pow(((targetDist)), 2)) / (age / 2));
 			// System.out.println(fitness);
 
 		}

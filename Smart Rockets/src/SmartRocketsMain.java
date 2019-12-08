@@ -19,7 +19,7 @@ import javax.swing.Timer;
 public class SmartRocketsMain extends JPanel
 		implements ActionListener, KeyListener, MouseListener, MouseMotionListener, MouseWheelListener {
 	private static final long serialVersionUID = 1L;
-
+ //hrwijdwjd
 	static long generation = 0;
 	static int screenWidth = 1920;
 	static int screenHeight = 1080;
@@ -27,11 +27,11 @@ public class SmartRocketsMain extends JPanel
 	boolean[] keysToggled = new boolean[300];
 	boolean[] mouse = new boolean[200];
 	boolean allDead;
-	int numRockets = 200;
+	int numRockets = 1000;
 	long frame = 0;
 	int skip = 0;
 	Point currentTarget = new Point(screenWidth/2 + Math.random() * screenWidth/2, Math.random() * screenHeight);
-	static int targetDiam = 50;
+	static int targetDiam = 20;
 	// Rect obs = new Rect(600, 100, 200, 300);
 	ArrayList<Rect> obstacles = new ArrayList<Rect>();
 	ArrayList<Rocket> rockets = new ArrayList<Rocket>();
@@ -64,7 +64,7 @@ public class SmartRocketsMain extends JPanel
 		g.setColor(Color.WHITE);
 		g.drawString("" + frame, 20, 20);
 		g.drawString("Generation: " + generation, 20, 60);
-		g.drawString("Avg: " + (float)avgAcc*100 + "%" , 20, 90);
+		g.drawString("Avg r: " + (float)avgAcc*100, 20, 90);
 		avgs.draw(g);
 
 	}
@@ -100,15 +100,19 @@ public class SmartRocketsMain extends JPanel
 						genePool.add(r);
 					}
 				}
-				averages.add((double)achieved / (double) numRockets);
-				sum += averages.get(averages.size()-1);
-				if(averages.size() > 10) {
-					sum -= averages.get(0);
-					averages.remove(0); 
+				double sum = 0;
+				for(Rocket r : rockets) {
+					sum += 1/ (r.pos.distanceTo(currentTarget) - targetDiam/2 + 2);
 				}
-				avgAcc = (float)(sum / (double)averages.size());
+				//averages.add((double)achieved / (double) numRockets);
+				averages.add(100*sum / (double) numRockets);
+				sum = 0;
+				for(int i = 0; i < (averages.size() >= 10 ? 10 : averages.size()); i++) {
+					sum += averages.get(averages.size() - i - 1);
+				}
+				avgAcc = (float)(sum / (double)((averages.size() >= 10 ? 10 : averages.size())));
 				avgs.data = averages;
-				System.out.println(((float)achieved / (float)numRockets) * 100 + "%" + " (" + (float)currentTarget.x + ", " + (float)currentTarget.y + ")");
+				System.out.println(averages.get(averages.size()-1));
 				//kill all of current generation
 				rockets.clear();
 				
@@ -120,7 +124,7 @@ public class SmartRocketsMain extends JPanel
 				for (int i = 0; i < numRockets; i++) {
 					NeuralNetwork newBrain = new NeuralNetwork(
 							genePool.get((int) (Math.random() * genePool.size())).brain);
-					newBrain.mutate(.025f); //controls mutation rate
+					newBrain.mutate(.015f); //controls mutation rate
 					
 					rockets.add(new Rocket(new Point(20,screenHeight/2 - 30), currentTarget, newBrain));
 				}
@@ -169,10 +173,10 @@ return p;
 		
 		avgs = new Graph(new Point(0,screenHeight - 240),400,200,averages, 8, false, 0.0,1.0);
 		
-		obstacles.add(new Rect(0,-90,screenWidth, 100));
-		obstacles.add(new Rect(-90,0,100, screenHeight));
-		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
-		obstacles.add(new Rect(screenWidth - 10,0,100, screenHeight));
+//		obstacles.add(new Rect(0,-90,screenWidth, 100));
+//		obstacles.add(new Rect(-90,0,100, screenHeight));
+//		obstacles.add(new Rect(0,screenHeight - 40,screenWidth, 100));
+//		obstacles.add(new Rect(screenWidth - 10,0,100, screenHeight));
 	}
 
 	// ==================code above ===========================
